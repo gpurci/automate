@@ -1,0 +1,1621 @@
+Linux/include/linux/input.h
+
+  1 #ifndef _INPUT_H
+  2 #define _INPUT_H
+  3 
+  4 /*
+  5  * Copyright (c) 1999-2002 Vojtech Pavlik
+  6  *
+  7  * This program is free software; you can redistribute it and/or modify it
+  8  * under the terms of the GNU General Public License version 2 as published by
+  9  * the Free Software Foundation.
+ 10  */
+ 11 
+ 12 #ifdef __KERNEL__
+ 13 #include <linux/time.h>
+ 14 #include <linux/list.h>
+ 15 #else
+ 16 #include <sys/time.h>
+ 17 #include <sys/ioctl.h>
+ 18 #include <sys/types.h>
+ 19 #include <linux/types.h>
+ 20 #endif
+ 21 
+ 22 /*
+ 23  * The event structure itself
+ 24  */
+ 25 
+ 26 struct input_event {
+ 27         struct timeval time;
+ 28         __u16 type;
+ 29         __u16 code;
+ 30         __s32 value;
+ 31 };
+ 32 
+ 33 /*
+ 34  * Protocol version.
+ 35  */
+ 36 
+ 37 #define EV_VERSION              0x010001
+ 38 
+ 39 /*
+ 40  * IOCTLs (0x00 - 0x7f)
+ 41  */
+ 42 
+ 43 struct input_id {
+ 44         __u16 bustype;
+ 45         __u16 vendor;
+ 46         __u16 product;
+ 47         __u16 version;
+ 48 };
+ 49 
+ 50 /**
+ 51  * struct input_absinfo - used by EVIOCGABS/EVIOCSABS ioctls
+ 52  * @value: latest reported value for the axis.
+ 53  * @minimum: specifies minimum value for the axis.
+ 54  * @maximum: specifies maximum value for the axis.
+ 55  * @fuzz: specifies fuzz value that is used to filter noise from
+ 56  *      the event stream.
+ 57  * @flat: values that are within this value will be discarded by
+ 58  *      joydev interface and reported as 0 instead.
+ 59  * @resolution: specifies resolution for the values reported for
+ 60  *      the axis.
+ 61  *
+ 62  * Note that input core does not clamp reported values to the
+ 63  * [minimum, maximum] limits, such task is left to userspace.
+ 64  *
+ 65  * Resolution for main axes (ABS_X, ABS_Y, ABS_Z) is reported in
+ 66  * units per millimeter (units/mm), resolution for rotational axes
+ 67  * (ABS_RX, ABS_RY, ABS_RZ) is reported in units per radian.
+ 68  */
+ 69 struct input_absinfo {
+ 70         __s32 value;
+ 71         __s32 minimum;
+ 72         __s32 maximum;
+ 73         __s32 fuzz;
+ 74         __s32 flat;
+ 75         __s32 resolution;
+ 76 };
+ 77 
+ 78 /**
+ 79  * struct input_keymap_entry - used by EVIOCGKEYCODE/EVIOCSKEYCODE ioctls
+ 80  * @scancode: scancode represented in machine-endian form.
+ 81  * @len: length of the scancode that resides in @scancode buffer.
+ 82  * @index: index in the keymap, may be used instead of scancode
+ 83  * @flags: allows to specify how kernel should handle the request. For
+ 84  *      example, setting INPUT_KEYMAP_BY_INDEX flag indicates that kernel
+ 85  *      should perform lookup in keymap by @index instead of @scancode
+ 86  * @keycode: key code assigned to this scancode
+ 87  *
+ 88  * The structure is used to retrieve and modify keymap data. Users have
+ 89  * option of performing lookup either by @scancode itself or by @index
+ 90  * in keymap entry. EVIOCGKEYCODE will also return scancode or index
+ 91  * (depending on which element was used to perform lookup).
+ 92  */
+ 93 struct input_keymap_entry {
+ 94 #define INPUT_KEYMAP_BY_INDEX   (1 << 0)
+ 95         __u8  flags;
+ 96         __u8  len;
+ 97         __u16 index;
+ 98         __u32 keycode;
+ 99         __u8  scancode[32];
+100 };
+101 
+102 #define EVIOCGVERSION           _IOR('E', 0x01, int)                    /* get driver version */
+103 #define EVIOCGID                _IOR('E', 0x02, struct input_id)        /* get device ID */
+104 #define EVIOCGREP               _IOR('E', 0x03, unsigned int[2])        /* get repeat settings */
+105 #define EVIOCSREP               _IOW('E', 0x03, unsigned int[2])        /* set repeat settings */
+106 
+107 #define EVIOCGKEYCODE           _IOR('E', 0x04, unsigned int[2])        /* get keycode */
+108 #define EVIOCGKEYCODE_V2        _IOR('E', 0x04, struct input_keymap_entry)
+109 #define EVIOCSKEYCODE           _IOW('E', 0x04, unsigned int[2])        /* set keycode */
+110 #define EVIOCSKEYCODE_V2        _IOW('E', 0x04, struct input_keymap_entry)
+111 
+112 #define EVIOCGNAME(len)         _IOC(_IOC_READ, 'E', 0x06, len)         /* get device name */
+113 #define EVIOCGPHYS(len)         _IOC(_IOC_READ, 'E', 0x07, len)         /* get physical location */
+114 #define EVIOCGUNIQ(len)         _IOC(_IOC_READ, 'E', 0x08, len)         /* get unique identifier */
+115 #define EVIOCGPROP(len)         _IOC(_IOC_READ, 'E', 0x09, len)         /* get device properties */
+116 
+117 #define EVIOCGKEY(len)          _IOC(_IOC_READ, 'E', 0x18, len)         /* get global key state */
+118 #define EVIOCGLED(len)          _IOC(_IOC_READ, 'E', 0x19, len)         /* get all LEDs */
+119 #define EVIOCGSND(len)          _IOC(_IOC_READ, 'E', 0x1a, len)         /* get all sounds status */
+120 #define EVIOCGSW(len)           _IOC(_IOC_READ, 'E', 0x1b, len)         /* get all switch states */
+121 
+122 #define EVIOCGBIT(ev,len)       _IOC(_IOC_READ, 'E', 0x20 + ev, len)    /* get event bits */
+123 #define EVIOCGABS(abs)          _IOR('E', 0x40 + abs, struct input_absinfo)     /* get abs value/limits */
+124 #define EVIOCSABS(abs)          _IOW('E', 0xc0 + abs, struct input_absinfo)     /* set abs value/limits */
+125 
+126 #define EVIOCSFF                _IOC(_IOC_WRITE, 'E', 0x80, sizeof(struct ff_effect))   /* send a force effect to a force feedback device */
+127 #define EVIOCRMFF               _IOW('E', 0x81, int)                    /* Erase a force effect */
+128 #define EVIOCGEFFECTS           _IOR('E', 0x84, int)                    /* Report number of effects playable at the same time */
+129 
+130 #define EVIOCGRAB               _IOW('E', 0x90, int)                    /* Grab/Release device */
+131 
+132 /*
+133  * Device properties and quirks
+134  */
+135 
+136 #define INPUT_PROP_POINTER              0x00    /* needs a pointer */
+137 #define INPUT_PROP_DIRECT               0x01    /* direct input devices */
+138 #define INPUT_PROP_BUTTONPAD            0x02    /* has button(s) under pad */
+139 #define INPUT_PROP_SEMI_MT              0x03    /* touch rectangle only */
+140 
+141 #define INPUT_PROP_MAX                  0x1f
+142 #define INPUT_PROP_CNT                  (INPUT_PROP_MAX + 1)
+143 
+144 /*
+145  * Event types
+146  */
+147 
+148 #define EV_SYN                  0x00
+149 #define EV_KEY                  0x01
+150 #define EV_REL                  0x02
+151 #define EV_ABS                  0x03
+152 #define EV_MSC                  0x04
+153 #define EV_SW                   0x05
+154 #define EV_LED                  0x11
+155 #define EV_SND                  0x12
+156 #define EV_REP                  0x14
+157 #define EV_FF                   0x15
+158 #define EV_PWR                  0x16
+159 #define EV_FF_STATUS            0x17
+160 #define EV_MAX                  0x1f
+161 #define EV_CNT                  (EV_MAX+1)
+162 
+163 /*
+164  * Synchronization events.
+165  */
+166 
+167 #define SYN_REPORT              0
+168 #define SYN_CONFIG              1
+169 #define SYN_MT_REPORT           2
+170 
+171 /*
+172  * Keys and buttons
+173  *
+174  * Most of the keys/buttons are modeled after USB HUT 1.12
+175  * (see http://www.usb.org/developers/hidpage).
+176  * Abbreviations in the comments:
+177  * AC - Application Control
+178  * AL - Application Launch Button
+179  * SC - System Control
+180  */
+181 
+182 #define KEY_RESERVED            0
+183 #define KEY_ESC                 1
+184 #define KEY_1                   2
+185 #define KEY_2                   3
+186 #define KEY_3                   4
+187 #define KEY_4                   5
+188 #define KEY_5                   6
+189 #define KEY_6                   7
+190 #define KEY_7                   8
+191 #define KEY_8                   9
+192 #define KEY_9                   10
+193 #define KEY_0                   11
+194 #define KEY_MINUS               12
+195 #define KEY_EQUAL               13
+196 #define KEY_BACKSPACE           14
+197 #define KEY_TAB                 15
+198 #define KEY_Q                   16
+199 #define KEY_W                   17
+200 #define KEY_E                   18
+201 #define KEY_R                   19
+202 #define KEY_T                   20
+203 #define KEY_Y                   21
+204 #define KEY_U                   22
+205 #define KEY_I                   23
+206 #define KEY_O                   24
+207 #define KEY_P                   25
+208 #define KEY_LEFTBRACE           26
+209 #define KEY_RIGHTBRACE          27
+210 #define KEY_ENTER               28
+211 #define KEY_LEFTCTRL            29
+212 #define KEY_A                   30
+213 #define KEY_S                   31
+214 #define KEY_D                   32
+215 #define KEY_F                   33
+216 #define KEY_G                   34
+217 #define KEY_H                   35
+218 #define KEY_J                   36
+219 #define KEY_K                   37
+220 #define KEY_L                   38
+221 #define KEY_SEMICOLON           39
+222 #define KEY_APOSTROPHE          40
+223 #define KEY_GRAVE               41
+224 #define KEY_LEFTSHIFT           42
+225 #define KEY_BACKSLASH           43
+226 #define KEY_Z                   44
+227 #define KEY_X                   45
+228 #define KEY_C                   46
+229 #define KEY_V                   47
+230 #define KEY_B                   48
+231 #define KEY_N                   49
+232 #define KEY_M                   50
+233 #define KEY_COMMA               51
+234 #define KEY_DOT                 52
+235 #define KEY_SLASH               53
+236 #define KEY_RIGHTSHIFT          54
+237 #define KEY_KPASTERISK          55
+238 #define KEY_LEFTALT             56
+239 #define KEY_SPACE               57
+240 #define KEY_CAPSLOCK            58
+241 #define KEY_F1                  59
+242 #define KEY_F2                  60
+243 #define KEY_F3                  61
+244 #define KEY_F4                  62
+245 #define KEY_F5                  63
+246 #define KEY_F6                  64
+247 #define KEY_F7                  65
+248 #define KEY_F8                  66
+249 #define KEY_F9                  67
+250 #define KEY_F10                 68
+251 #define KEY_NUMLOCK             69
+252 #define KEY_SCROLLLOCK          70
+253 #define KEY_KP7                 71
+254 #define KEY_KP8                 72
+255 #define KEY_KP9                 73
+256 #define KEY_KPMINUS             74
+257 #define KEY_KP4                 75
+258 #define KEY_KP5                 76
+259 #define KEY_KP6                 77
+260 #define KEY_KPPLUS              78
+261 #define KEY_KP1                 79
+262 #define KEY_KP2                 80
+263 #define KEY_KP3                 81
+264 #define KEY_KP0                 82
+265 #define KEY_KPDOT               83
+266 
+267 #define KEY_ZENKAKUHANKAKU      85
+268 #define KEY_102ND               86
+269 #define KEY_F11                 87
+270 #define KEY_F12                 88
+271 #define KEY_RO                  89
+272 #define KEY_KATAKANA            90
+273 #define KEY_HIRAGANA            91
+274 #define KEY_HENKAN              92
+275 #define KEY_KATAKANAHIRAGANA    93
+276 #define KEY_MUHENKAN            94
+277 #define KEY_KPJPCOMMA           95
+278 #define KEY_KPENTER             96
+279 #define KEY_RIGHTCTRL           97
+280 #define KEY_KPSLASH             98
+281 #define KEY_SYSRQ               99
+282 #define KEY_RIGHTALT            100
+283 #define KEY_LINEFEED            101
+284 #define KEY_HOME                102
+285 #define KEY_UP                  103
+286 #define KEY_PAGEUP              104
+287 #define KEY_LEFT                105
+288 #define KEY_RIGHT               106
+289 #define KEY_END                 107
+290 #define KEY_DOWN                108
+291 #define KEY_PAGEDOWN            109
+292 #define KEY_INSERT              110
+293 #define KEY_DELETE              111
+294 #define KEY_MACRO               112
+295 #define KEY_MUTE                113
+296 #define KEY_VOLUMEDOWN          114
+297 #define KEY_VOLUMEUP            115
+298 #define KEY_POWER               116     /* SC System Power Down */
+299 #define KEY_KPEQUAL             117
+300 #define KEY_KPPLUSMINUS         118
+301 #define KEY_PAUSE               119
+302 #define KEY_SCALE               120     /* AL Compiz Scale (Expose) */
+303 
+304 #define KEY_KPCOMMA             121
+305 #define KEY_HANGEUL             122
+306 #define KEY_HANGUEL             KEY_HANGEUL
+307 #define KEY_HANJA               123
+308 #define KEY_YEN                 124
+309 #define KEY_LEFTMETA            125
+310 #define KEY_RIGHTMETA           126
+311 #define KEY_COMPOSE             127
+312 
+313 #define KEY_STOP                128     /* AC Stop */
+314 #define KEY_AGAIN               129
+315 #define KEY_PROPS               130     /* AC Properties */
+316 #define KEY_UNDO                131     /* AC Undo */
+317 #define KEY_FRONT               132
+318 #define KEY_COPY                133     /* AC Copy */
+319 #define KEY_OPEN                134     /* AC Open */
+320 #define KEY_PASTE               135     /* AC Paste */
+321 #define KEY_FIND                136     /* AC Search */
+322 #define KEY_CUT                 137     /* AC Cut */
+323 #define KEY_HELP                138     /* AL Integrated Help Center */
+324 #define KEY_MENU                139     /* Menu (show menu) */
+325 #define KEY_CALC                140     /* AL Calculator */
+326 #define KEY_SETUP               141
+327 #define KEY_SLEEP               142     /* SC System Sleep */
+328 #define KEY_WAKEUP              143     /* System Wake Up */
+329 #define KEY_FILE                144     /* AL Local Machine Browser */
+330 #define KEY_SENDFILE            145
+331 #define KEY_DELETEFILE          146
+332 #define KEY_XFER                147
+333 #define KEY_PROG1               148
+334 #define KEY_PROG2               149
+335 #define KEY_WWW                 150     /* AL Internet Browser */
+336 #define KEY_MSDOS               151
+337 #define KEY_COFFEE              152     /* AL Terminal Lock/Screensaver */
+338 #define KEY_SCREENLOCK          KEY_COFFEE
+339 #define KEY_DIRECTION           153
+340 #define KEY_CYCLEWINDOWS        154
+341 #define KEY_MAIL                155
+342 #define KEY_BOOKMARKS           156     /* AC Bookmarks */
+343 #define KEY_COMPUTER            157
+344 #define KEY_BACK                158     /* AC Back */
+345 #define KEY_FORWARD             159     /* AC Forward */
+346 #define KEY_CLOSECD             160
+347 #define KEY_EJECTCD             161
+348 #define KEY_EJECTCLOSECD        162
+349 #define KEY_NEXTSONG            163
+350 #define KEY_PLAYPAUSE           164
+351 #define KEY_PREVIOUSSONG        165
+352 #define KEY_STOPCD              166
+353 #define KEY_RECORD              167
+354 #define KEY_REWIND              168
+355 #define KEY_PHONE               169     /* Media Select Telephone */
+356 #define KEY_ISO                 170
+357 #define KEY_CONFIG              171     /* AL Consumer Control Configuration */
+358 #define KEY_HOMEPAGE            172     /* AC Home */
+359 #define KEY_REFRESH             173     /* AC Refresh */
+360 #define KEY_EXIT                174     /* AC Exit */
+361 #define KEY_MOVE                175
+362 #define KEY_EDIT                176
+363 #define KEY_SCROLLUP            177
+364 #define KEY_SCROLLDOWN          178
+365 #define KEY_KPLEFTPAREN         179
+366 #define KEY_KPRIGHTPAREN        180
+367 #define KEY_NEW                 181     /* AC New */
+368 #define KEY_REDO                182     /* AC Redo/Repeat */
+369 
+370 #define KEY_F13                 183
+371 #define KEY_F14                 184
+372 #define KEY_F15                 185
+373 #define KEY_F16                 186
+374 #define KEY_F17                 187
+375 #define KEY_F18                 188
+376 #define KEY_F19                 189
+377 #define KEY_F20                 190
+378 #define KEY_F21                 191
+379 #define KEY_F22                 192
+380 #define KEY_F23                 193
+381 #define KEY_F24                 194
+382 
+383 #define KEY_PLAYCD              200
+384 #define KEY_PAUSECD             201
+385 #define KEY_PROG3               202
+386 #define KEY_PROG4               203
+387 #define KEY_DASHBOARD           204     /* AL Dashboard */
+388 #define KEY_SUSPEND             205
+389 #define KEY_CLOSE               206     /* AC Close */
+390 #define KEY_PLAY                207
+391 #define KEY_FASTFORWARD         208
+392 #define KEY_BASSBOOST           209
+393 #define KEY_PRINT               210     /* AC Print */
+394 #define KEY_HP                  211
+395 #define KEY_CAMERA              212
+396 #define KEY_SOUND               213
+397 #define KEY_QUESTION            214
+398 #define KEY_EMAIL               215
+399 #define KEY_CHAT                216
+400 #define KEY_SEARCH              217
+401 #define KEY_CONNECT             218
+402 #define KEY_FINANCE             219     /* AL Checkbook/Finance */
+403 #define KEY_SPORT               220
+404 #define KEY_SHOP                221
+405 #define KEY_ALTERASE            222
+406 #define KEY_CANCEL              223     /* AC Cancel */
+407 #define KEY_BRIGHTNESSDOWN      224
+408 #define KEY_BRIGHTNESSUP        225
+409 #define KEY_MEDIA               226
+410 
+411 #define KEY_SWITCHVIDEOMODE     227     /* Cycle between available video
+412                                            outputs (Monitor/LCD/TV-out/etc) */
+413 #define KEY_KBDILLUMTOGGLE      228
+414 #define KEY_KBDILLUMDOWN        229
+415 #define KEY_KBDILLUMUP          230
+416 
+417 #define KEY_SEND                231     /* AC Send */
+418 #define KEY_REPLY               232     /* AC Reply */
+419 #define KEY_FORWARDMAIL         233     /* AC Forward Msg */
+420 #define KEY_SAVE                234     /* AC Save */
+421 #define KEY_DOCUMENTS           235
+422 
+423 #define KEY_BATTERY             236
+424 
+425 #define KEY_BLUETOOTH           237
+426 #define KEY_WLAN                238
+427 #define KEY_UWB                 239
+428 
+429 #define KEY_UNKNOWN             240
+430 
+431 #define KEY_VIDEO_NEXT          241     /* drive next video source */
+432 #define KEY_VIDEO_PREV          242     /* drive previous video source */
+433 #define KEY_BRIGHTNESS_CYCLE    243     /* brightness up, after max is min */
+434 #define KEY_BRIGHTNESS_ZERO     244     /* brightness off, use ambient */
+435 #define KEY_DISPLAY_OFF         245     /* display device to off state */
+436 
+437 #define KEY_WIMAX               246
+438 #define KEY_RFKILL              247     /* Key that controls all radios */
+439 
+440 /* Code 255 is reserved for special needs of AT keyboard driver */
+441 
+442 #define BTN_MISC                0x100
+443 #define BTN_0                   0x100
+444 #define BTN_1                   0x101
+445 #define BTN_2                   0x102
+446 #define BTN_3                   0x103
+447 #define BTN_4                   0x104
+448 #define BTN_5                   0x105
+449 #define BTN_6                   0x106
+450 #define BTN_7                   0x107
+451 #define BTN_8                   0x108
+452 #define BTN_9                   0x109
+453 
+454 #define BTN_MOUSE               0x110
+455 #define BTN_LEFT                0x110
+456 #define BTN_RIGHT               0x111
+457 #define BTN_MIDDLE              0x112
+458 #define BTN_SIDE                0x113
+459 #define BTN_EXTRA               0x114
+460 #define BTN_FORWARD             0x115
+461 #define BTN_BACK                0x116
+462 #define BTN_TASK                0x117
+463 
+464 #define BTN_JOYSTICK            0x120
+465 #define BTN_TRIGGER             0x120
+466 #define BTN_THUMB               0x121
+467 #define BTN_THUMB2              0x122
+468 #define BTN_TOP                 0x123
+469 #define BTN_TOP2                0x124
+470 #define BTN_PINKIE              0x125
+471 #define BTN_BASE                0x126
+472 #define BTN_BASE2               0x127
+473 #define BTN_BASE3               0x128
+474 #define BTN_BASE4               0x129
+475 #define BTN_BASE5               0x12a
+476 #define BTN_BASE6               0x12b
+477 #define BTN_DEAD                0x12f
+478 
+479 #define BTN_GAMEPAD             0x130
+480 #define BTN_A                   0x130
+481 #define BTN_B                   0x131
+482 #define BTN_C                   0x132
+483 #define BTN_X                   0x133
+484 #define BTN_Y                   0x134
+485 #define BTN_Z                   0x135
+486 #define BTN_TL                  0x136
+487 #define BTN_TR                  0x137
+488 #define BTN_TL2                 0x138
+489 #define BTN_TR2                 0x139
+490 #define BTN_SELECT              0x13a
+491 #define BTN_START               0x13b
+492 #define BTN_MODE                0x13c
+493 #define BTN_THUMBL              0x13d
+494 #define BTN_THUMBR              0x13e
+495 
+496 #define BTN_DIGI                0x140
+497 #define BTN_TOOL_PEN            0x140
+498 #define BTN_TOOL_RUBBER         0x141
+499 #define BTN_TOOL_BRUSH          0x142
+500 #define BTN_TOOL_PENCIL         0x143
+501 #define BTN_TOOL_AIRBRUSH       0x144
+502 #define BTN_TOOL_FINGER         0x145
+503 #define BTN_TOOL_MOUSE          0x146
+504 #define BTN_TOOL_LENS           0x147
+505 #define BTN_TOUCH               0x14a
+506 #define BTN_STYLUS              0x14b
+507 #define BTN_STYLUS2             0x14c
+508 #define BTN_TOOL_DOUBLETAP      0x14d
+509 #define BTN_TOOL_TRIPLETAP      0x14e
+510 #define BTN_TOOL_QUADTAP        0x14f   /* Four fingers on trackpad */
+511 
+512 #define BTN_WHEEL               0x150
+513 #define BTN_GEAR_DOWN           0x150
+514 #define BTN_GEAR_UP             0x151
+515 
+516 #define KEY_OK                  0x160
+517 #define KEY_SELECT              0x161
+518 #define KEY_GOTO                0x162
+519 #define KEY_CLEAR               0x163
+520 #define KEY_POWER2              0x164
+521 #define KEY_OPTION              0x165
+522 #define KEY_INFO                0x166   /* AL OEM Features/Tips/Tutorial */
+523 #define KEY_TIME                0x167
+524 #define KEY_VENDOR              0x168
+525 #define KEY_ARCHIVE             0x169
+526 #define KEY_PROGRAM             0x16a   /* Media Select Program Guide */
+527 #define KEY_CHANNEL             0x16b
+528 #define KEY_FAVORITES           0x16c
+529 #define KEY_EPG                 0x16d
+530 #define KEY_PVR                 0x16e   /* Media Select Home */
+531 #define KEY_MHP                 0x16f
+532 #define KEY_LANGUAGE            0x170
+533 #define KEY_TITLE               0x171
+534 #define KEY_SUBTITLE            0x172
+535 #define KEY_ANGLE               0x173
+536 #define KEY_ZOOM                0x174
+537 #define KEY_MODE                0x175
+538 #define KEY_KEYBOARD            0x176
+539 #define KEY_SCREEN              0x177
+540 #define KEY_PC                  0x178   /* Media Select Computer */
+541 #define KEY_TV                  0x179   /* Media Select TV */
+542 #define KEY_TV2                 0x17a   /* Media Select Cable */
+543 #define KEY_VCR                 0x17b   /* Media Select VCR */
+544 #define KEY_VCR2                0x17c   /* VCR Plus */
+545 #define KEY_SAT                 0x17d   /* Media Select Satellite */
+546 #define KEY_SAT2                0x17e
+547 #define KEY_CD                  0x17f   /* Media Select CD */
+548 #define KEY_TAPE                0x180   /* Media Select Tape */
+549 #define KEY_RADIO               0x181
+550 #define KEY_TUNER               0x182   /* Media Select Tuner */
+551 #define KEY_PLAYER              0x183
+552 #define KEY_TEXT                0x184
+553 #define KEY_DVD                 0x185   /* Media Select DVD */
+554 #define KEY_AUX                 0x186
+555 #define KEY_MP3                 0x187
+556 #define KEY_AUDIO               0x188
+557 #define KEY_VIDEO               0x189
+558 #define KEY_DIRECTORY           0x18a
+559 #define KEY_LIST                0x18b
+560 #define KEY_MEMO                0x18c   /* Media Select Messages */
+561 #define KEY_CALENDAR            0x18d
+562 #define KEY_RED                 0x18e
+563 #define KEY_GREEN               0x18f
+564 #define KEY_YELLOW              0x190
+565 #define KEY_BLUE                0x191
+566 #define KEY_CHANNELUP           0x192   /* Channel Increment */
+567 #define KEY_CHANNELDOWN         0x193   /* Channel Decrement */
+568 #define KEY_FIRST               0x194
+569 #define KEY_LAST                0x195   /* Recall Last */
+570 #define KEY_AB                  0x196
+571 #define KEY_NEXT                0x197
+572 #define KEY_RESTART             0x198
+573 #define KEY_SLOW                0x199
+574 #define KEY_SHUFFLE             0x19a
+575 #define KEY_BREAK               0x19b
+576 #define KEY_PREVIOUS            0x19c
+577 #define KEY_DIGITS              0x19d
+578 #define KEY_TEEN                0x19e
+579 #define KEY_TWEN                0x19f
+580 #define KEY_VIDEOPHONE          0x1a0   /* Media Select Video Phone */
+581 #define KEY_GAMES               0x1a1   /* Media Select Games */
+582 #define KEY_ZOOMIN              0x1a2   /* AC Zoom In */
+583 #define KEY_ZOOMOUT             0x1a3   /* AC Zoom Out */
+584 #define KEY_ZOOMRESET           0x1a4   /* AC Zoom */
+585 #define KEY_WORDPROCESSOR       0x1a5   /* AL Word Processor */
+586 #define KEY_EDITOR              0x1a6   /* AL Text Editor */
+587 #define KEY_SPREADSHEET         0x1a7   /* AL Spreadsheet */
+588 #define KEY_GRAPHICSEDITOR      0x1a8   /* AL Graphics Editor */
+589 #define KEY_PRESENTATION        0x1a9   /* AL Presentation App */
+590 #define KEY_DATABASE            0x1aa   /* AL Database App */
+591 #define KEY_NEWS                0x1ab   /* AL Newsreader */
+592 #define KEY_VOICEMAIL           0x1ac   /* AL Voicemail */
+593 #define KEY_ADDRESSBOOK         0x1ad   /* AL Contacts/Address Book */
+594 #define KEY_MESSENGER           0x1ae   /* AL Instant Messaging */
+595 #define KEY_DISPLAYTOGGLE       0x1af   /* Turn display (LCD) on and off */
+596 #define KEY_SPELLCHECK          0x1b0   /* AL Spell Check */
+597 #define KEY_LOGOFF              0x1b1   /* AL Logoff */
+598 
+599 #define KEY_DOLLAR              0x1b2
+600 #define KEY_EURO                0x1b3
+601 
+602 #define KEY_FRAMEBACK           0x1b4   /* Consumer - transport controls */
+603 #define KEY_FRAMEFORWARD        0x1b5
+604 #define KEY_CONTEXT_MENU        0x1b6   /* GenDesc - system context menu */
+605 #define KEY_MEDIA_REPEAT        0x1b7   /* Consumer - transport control */
+606 #define KEY_10CHANNELSUP        0x1b8   /* 10 channels up (10+) */
+607 #define KEY_10CHANNELSDOWN      0x1b9   /* 10 channels down (10-) */
+608 
+609 #define KEY_DEL_EOL             0x1c0
+610 #define KEY_DEL_EOS             0x1c1
+611 #define KEY_INS_LINE            0x1c2
+612 #define KEY_DEL_LINE            0x1c3
+613 
+614 #define KEY_FN                  0x1d0
+615 #define KEY_FN_ESC              0x1d1
+616 #define KEY_FN_F1               0x1d2
+617 #define KEY_FN_F2               0x1d3
+618 #define KEY_FN_F3               0x1d4
+619 #define KEY_FN_F4               0x1d5
+620 #define KEY_FN_F5               0x1d6
+621 #define KEY_FN_F6               0x1d7
+622 #define KEY_FN_F7               0x1d8
+623 #define KEY_FN_F8               0x1d9
+624 #define KEY_FN_F9               0x1da
+625 #define KEY_FN_F10              0x1db
+626 #define KEY_FN_F11              0x1dc
+627 #define KEY_FN_F12              0x1dd
+628 #define KEY_FN_1                0x1de
+629 #define KEY_FN_2                0x1df
+630 #define KEY_FN_D                0x1e0
+631 #define KEY_FN_E                0x1e1
+632 #define KEY_FN_F                0x1e2
+633 #define KEY_FN_S                0x1e3
+634 #define KEY_FN_B                0x1e4
+635 
+636 #define KEY_BRL_DOT1            0x1f1
+637 #define KEY_BRL_DOT2            0x1f2
+638 #define KEY_BRL_DOT3            0x1f3
+639 #define KEY_BRL_DOT4            0x1f4
+640 #define KEY_BRL_DOT5            0x1f5
+641 #define KEY_BRL_DOT6            0x1f6
+642 #define KEY_BRL_DOT7            0x1f7
+643 #define KEY_BRL_DOT8            0x1f8
+644 #define KEY_BRL_DOT9            0x1f9
+645 #define KEY_BRL_DOT10           0x1fa
+646 
+647 #define KEY_NUMERIC_0           0x200   /* used by phones, remote controls, */
+648 #define KEY_NUMERIC_1           0x201   /* and other keypads */
+649 #define KEY_NUMERIC_2           0x202
+650 #define KEY_NUMERIC_3           0x203
+651 #define KEY_NUMERIC_4           0x204
+652 #define KEY_NUMERIC_5           0x205
+653 #define KEY_NUMERIC_6           0x206
+654 #define KEY_NUMERIC_7           0x207
+655 #define KEY_NUMERIC_8           0x208
+656 #define KEY_NUMERIC_9           0x209
+657 #define KEY_NUMERIC_STAR        0x20a
+658 #define KEY_NUMERIC_POUND       0x20b
+659 
+660 #define KEY_CAMERA_FOCUS        0x210
+661 #define KEY_WPS_BUTTON          0x211   /* WiFi Protected Setup key */
+662 
+663 #define KEY_TOUCHPAD_TOGGLE     0x212   /* Request switch touchpad on or off */
+664 #define KEY_TOUCHPAD_ON         0x213
+665 #define KEY_TOUCHPAD_OFF        0x214
+666 
+667 #define BTN_TRIGGER_HAPPY               0x2c0
+668 #define BTN_TRIGGER_HAPPY1              0x2c0
+669 #define BTN_TRIGGER_HAPPY2              0x2c1
+670 #define BTN_TRIGGER_HAPPY3              0x2c2
+671 #define BTN_TRIGGER_HAPPY4              0x2c3
+672 #define BTN_TRIGGER_HAPPY5              0x2c4
+673 #define BTN_TRIGGER_HAPPY6              0x2c5
+674 #define BTN_TRIGGER_HAPPY7              0x2c6
+675 #define BTN_TRIGGER_HAPPY8              0x2c7
+676 #define BTN_TRIGGER_HAPPY9              0x2c8
+677 #define BTN_TRIGGER_HAPPY10             0x2c9
+678 #define BTN_TRIGGER_HAPPY11             0x2ca
+679 #define BTN_TRIGGER_HAPPY12             0x2cb
+680 #define BTN_TRIGGER_HAPPY13             0x2cc
+681 #define BTN_TRIGGER_HAPPY14             0x2cd
+682 #define BTN_TRIGGER_HAPPY15             0x2ce
+683 #define BTN_TRIGGER_HAPPY16             0x2cf
+684 #define BTN_TRIGGER_HAPPY17             0x2d0
+685 #define BTN_TRIGGER_HAPPY18             0x2d1
+686 #define BTN_TRIGGER_HAPPY19             0x2d2
+687 #define BTN_TRIGGER_HAPPY20             0x2d3
+688 #define BTN_TRIGGER_HAPPY21             0x2d4
+689 #define BTN_TRIGGER_HAPPY22             0x2d5
+690 #define BTN_TRIGGER_HAPPY23             0x2d6
+691 #define BTN_TRIGGER_HAPPY24             0x2d7
+692 #define BTN_TRIGGER_HAPPY25             0x2d8
+693 #define BTN_TRIGGER_HAPPY26             0x2d9
+694 #define BTN_TRIGGER_HAPPY27             0x2da
+695 #define BTN_TRIGGER_HAPPY28             0x2db
+696 #define BTN_TRIGGER_HAPPY29             0x2dc
+697 #define BTN_TRIGGER_HAPPY30             0x2dd
+698 #define BTN_TRIGGER_HAPPY31             0x2de
+699 #define BTN_TRIGGER_HAPPY32             0x2df
+700 #define BTN_TRIGGER_HAPPY33             0x2e0
+701 #define BTN_TRIGGER_HAPPY34             0x2e1
+702 #define BTN_TRIGGER_HAPPY35             0x2e2
+703 #define BTN_TRIGGER_HAPPY36             0x2e3
+704 #define BTN_TRIGGER_HAPPY37             0x2e4
+705 #define BTN_TRIGGER_HAPPY38             0x2e5
+706 #define BTN_TRIGGER_HAPPY39             0x2e6
+707 #define BTN_TRIGGER_HAPPY40             0x2e7
+708 
+709 /* We avoid low common keys in module aliases so they don't get huge. */
+710 #define KEY_MIN_INTERESTING     KEY_MUTE
+711 #define KEY_MAX                 0x2ff
+712 #define KEY_CNT                 (KEY_MAX+1)
+713 
+714 /*
+715  * Relative axes
+716  */
+717 
+718 #define REL_X                   0x00
+719 #define REL_Y                   0x01
+720 #define REL_Z                   0x02
+721 #define REL_RX                  0x03
+722 #define REL_RY                  0x04
+723 #define REL_RZ                  0x05
+724 #define REL_HWHEEL              0x06
+725 #define REL_DIAL                0x07
+726 #define REL_WHEEL               0x08
+727 #define REL_MISC                0x09
+728 #define REL_MAX                 0x0f
+729 #define REL_CNT                 (REL_MAX+1)
+730 
+731 /*
+732  * Absolute axes
+733  */
+734 
+735 #define ABS_X                   0x00
+736 #define ABS_Y                   0x01
+737 #define ABS_Z                   0x02
+738 #define ABS_RX                  0x03
+739 #define ABS_RY                  0x04
+740 #define ABS_RZ                  0x05
+741 #define ABS_THROTTLE            0x06
+742 #define ABS_RUDDER              0x07
+743 #define ABS_WHEEL               0x08
+744 #define ABS_GAS                 0x09
+745 #define ABS_BRAKE               0x0a
+746 #define ABS_HAT0X               0x10
+747 #define ABS_HAT0Y               0x11
+748 #define ABS_HAT1X               0x12
+749 #define ABS_HAT1Y               0x13
+750 #define ABS_HAT2X               0x14
+751 #define ABS_HAT2Y               0x15
+752 #define ABS_HAT3X               0x16
+753 #define ABS_HAT3Y               0x17
+754 #define ABS_PRESSURE            0x18
+755 #define ABS_DISTANCE            0x19
+756 #define ABS_TILT_X              0x1a
+757 #define ABS_TILT_Y              0x1b
+758 #define ABS_TOOL_WIDTH          0x1c
+759 
+760 #define ABS_VOLUME              0x20
+761 
+762 #define ABS_MISC                0x28
+763 
+764 #define ABS_MT_SLOT             0x2f    /* MT slot being modified */
+765 #define ABS_MT_TOUCH_MAJOR      0x30    /* Major axis of touching ellipse */
+766 #define ABS_MT_TOUCH_MINOR      0x31    /* Minor axis (omit if circular) */
+767 #define ABS_MT_WIDTH_MAJOR      0x32    /* Major axis of approaching ellipse */
+768 #define ABS_MT_WIDTH_MINOR      0x33    /* Minor axis (omit if circular) */
+769 #define ABS_MT_ORIENTATION      0x34    /* Ellipse orientation */
+770 #define ABS_MT_POSITION_X       0x35    /* Center X ellipse position */
+771 #define ABS_MT_POSITION_Y       0x36    /* Center Y ellipse position */
+772 #define ABS_MT_TOOL_TYPE        0x37    /* Type of touching device */
+773 #define ABS_MT_BLOB_ID          0x38    /* Group a set of packets as a blob */
+774 #define ABS_MT_TRACKING_ID      0x39    /* Unique ID of initiated contact */
+775 #define ABS_MT_PRESSURE         0x3a    /* Pressure on contact area */
+776 #define ABS_MT_DISTANCE         0x3b    /* Contact hover distance */
+777 
+778 #ifdef __KERNEL__
+779 /* Implementation details, userspace should not care about these */
+780 #define ABS_MT_FIRST            ABS_MT_TOUCH_MAJOR
+781 #define ABS_MT_LAST             ABS_MT_DISTANCE
+782 #endif
+783 
+784 #define ABS_MAX                 0x3f
+785 #define ABS_CNT                 (ABS_MAX+1)
+786 
+787 /*
+788  * Switch events
+789  */
+790 
+791 #define SW_LID                  0x00  /* set = lid shut */
+792 #define SW_TABLET_MODE          0x01  /* set = tablet mode */
+793 #define SW_HEADPHONE_INSERT     0x02  /* set = inserted */
+794 #define SW_RFKILL_ALL           0x03  /* rfkill master switch, type "any"
+795                                          set = radio enabled */
+796 #define SW_RADIO                SW_RFKILL_ALL   /* deprecated */
+797 #define SW_MICROPHONE_INSERT    0x04  /* set = inserted */
+798 #define SW_DOCK                 0x05  /* set = plugged into dock */
+799 #define SW_LINEOUT_INSERT       0x06  /* set = inserted */
+800 #define SW_JACK_PHYSICAL_INSERT 0x07  /* set = mechanical switch set */
+801 #define SW_VIDEOOUT_INSERT      0x08  /* set = inserted */
+802 #define SW_CAMERA_LENS_COVER    0x09  /* set = lens covered */
+803 #define SW_KEYPAD_SLIDE         0x0a  /* set = keypad slide out */
+804 #define SW_FRONT_PROXIMITY      0x0b  /* set = front proximity sensor active */
+805 #define SW_ROTATE_LOCK          0x0c  /* set = rotate locked/disabled */
+806 #define SW_MAX                  0x0f
+807 #define SW_CNT                  (SW_MAX+1)
+808 
+809 /*
+810  * Misc events
+811  */
+812 
+813 #define MSC_SERIAL              0x00
+814 #define MSC_PULSELED            0x01
+815 #define MSC_GESTURE             0x02
+816 #define MSC_RAW                 0x03
+817 #define MSC_SCAN                0x04
+818 #define MSC_MAX                 0x07
+819 #define MSC_CNT                 (MSC_MAX+1)
+820 
+821 /*
+822  * LEDs
+823  */
+824 
+825 #define LED_NUML                0x00
+826 #define LED_CAPSL               0x01
+827 #define LED_SCROLLL             0x02
+828 #define LED_COMPOSE             0x03
+829 #define LED_KANA                0x04
+830 #define LED_SLEEP               0x05
+831 #define LED_SUSPEND             0x06
+832 #define LED_MUTE                0x07
+833 #define LED_MISC                0x08
+834 #define LED_MAIL                0x09
+835 #define LED_CHARGING            0x0a
+836 #define LED_MAX                 0x0f
+837 #define LED_CNT                 (LED_MAX+1)
+838 
+839 /*
+840  * Autorepeat values
+841  */
+842 
+843 #define REP_DELAY               0x00
+844 #define REP_PERIOD              0x01
+845 #define REP_MAX                 0x01
+846 #define REP_CNT                 (REP_MAX+1)
+847 
+848 /*
+849  * Sounds
+850  */
+851 
+852 #define SND_CLICK               0x00
+853 #define SND_BELL                0x01
+854 #define SND_TONE                0x02
+855 #define SND_MAX                 0x07
+856 #define SND_CNT                 (SND_MAX+1)
+857 
+858 /*
+859  * IDs.
+860  */
+861 
+862 #define ID_BUS                  0
+863 #define ID_VENDOR               1
+864 #define ID_PRODUCT              2
+865 #define ID_VERSION              3
+866 
+867 #define BUS_PCI                 0x01
+868 #define BUS_ISAPNP              0x02
+869 #define BUS_USB                 0x03
+870 #define BUS_HIL                 0x04
+871 #define BUS_BLUETOOTH           0x05
+872 #define BUS_VIRTUAL             0x06
+873 
+874 #define BUS_ISA                 0x10
+875 #define BUS_I8042               0x11
+876 #define BUS_XTKBD               0x12
+877 #define BUS_RS232               0x13
+878 #define BUS_GAMEPORT            0x14
+879 #define BUS_PARPORT             0x15
+880 #define BUS_AMIGA               0x16
+881 #define BUS_ADB                 0x17
+882 #define BUS_I2C                 0x18
+883 #define BUS_HOST                0x19
+884 #define BUS_GSC                 0x1A
+885 #define BUS_ATARI               0x1B
+886 #define BUS_SPI                 0x1C
+887 
+888 /*
+889  * MT_TOOL types
+890  */
+891 #define MT_TOOL_FINGER          0
+892 #define MT_TOOL_PEN             1
+893 #define MT_TOOL_MAX             1
+894 
+895 /*
+896  * Values describing the status of a force-feedback effect
+897  */
+898 #define FF_STATUS_STOPPED       0x00
+899 #define FF_STATUS_PLAYING       0x01
+900 #define FF_STATUS_MAX           0x01
+901 
+902 /*
+903  * Structures used in ioctls to upload effects to a device
+904  * They are pieces of a bigger structure (called ff_effect)
+905  */
+906 
+907 /*
+908  * All duration values are expressed in ms. Values above 32767 ms (0x7fff)
+909  * should not be used and have unspecified results.
+910  */
+911 
+912 /**
+913  * struct ff_replay - defines scheduling of the force-feedback effect
+914  * @length: duration of the effect
+915  * @delay: delay before effect should start playing
+916  */
+917 struct ff_replay {
+918         __u16 length;
+919         __u16 delay;
+920 };
+921 
+922 /**
+923  * struct ff_trigger - defines what triggers the force-feedback effect
+924  * @button: number of the button triggering the effect
+925  * @interval: controls how soon the effect can be re-triggered
+926  */
+927 struct ff_trigger {
+928         __u16 button;
+929         __u16 interval;
+930 };
+931 
+932 /**
+933  * struct ff_envelope - generic force-feedback effect envelope
+934  * @attack_length: duration of the attack (ms)
+935  * @attack_level: level at the beginning of the attack
+936  * @fade_length: duration of fade (ms)
+937  * @fade_level: level at the end of fade
+938  *
+939  * The @attack_level and @fade_level are absolute values; when applying
+940  * envelope force-feedback core will convert to positive/negative
+941  * value based on polarity of the default level of the effect.
+942  * Valid range for the attack and fade levels is 0x0000 - 0x7fff
+943  */
+944 struct ff_envelope {
+945         __u16 attack_length;
+946         __u16 attack_level;
+947         __u16 fade_length;
+948         __u16 fade_level;
+949 };
+950 
+951 /**
+952  * struct ff_constant_effect - defines parameters of a constant force-feedback effect
+953  * @level: strength of the effect; may be negative
+954  * @envelope: envelope data
+955  */
+956 struct ff_constant_effect {
+957         __s16 level;
+958         struct ff_envelope envelope;
+959 };
+960 
+961 /**
+962  * struct ff_ramp_effect - defines parameters of a ramp force-feedback effect
+963  * @start_level: beginning strength of the effect; may be negative
+964  * @end_level: final strength of the effect; may be negative
+965  * @envelope: envelope data
+966  */
+967 struct ff_ramp_effect {
+968         __s16 start_level;
+969         __s16 end_level;
+970         struct ff_envelope envelope;
+971 };
+972 
+973 /**
+974  * struct ff_condition_effect - defines a spring or friction force-feedback effect
+975  * @right_saturation: maximum level when joystick moved all way to the right
+976  * @left_saturation: same for the left side
+977  * @right_coeff: controls how fast the force grows when the joystick moves
+978  *      to the right
+979  * @left_coeff: same for the left side
+980  * @deadband: size of the dead zone, where no force is produced
+981  * @center: position of the dead zone
+982  */
+983 struct ff_condition_effect {
+984         __u16 right_saturation;
+985         __u16 left_saturation;
+986 
+987         __s16 right_coeff;
+988         __s16 left_coeff;
+989 
+990         __u16 deadband;
+991         __s16 center;
+992 };
+993 
+994 /**
+995  * struct ff_periodic_effect - defines parameters of a periodic force-feedback effect
+996  * @waveform: kind of the effect (wave)
+997  * @period: period of the wave (ms)
+998  * @magnitude: peak value
+999  * @offset: mean value of the wave (roughly)
+1000  * @phase: 'horizontal' shift
+1001  * @envelope: envelope data
+1002  * @custom_len: number of samples (FF_CUSTOM only)
+1003  * @custom_data: buffer of samples (FF_CUSTOM only)
+1004  *
+1005  * Known waveforms - FF_SQUARE, FF_TRIANGLE, FF_SINE, FF_SAW_UP,
+1006  * FF_SAW_DOWN, FF_CUSTOM. The exact syntax FF_CUSTOM is undefined
+1007  * for the time being as no driver supports it yet.
+1008  *
+1009  * Note: the data pointed by custom_data is copied by the driver.
+1010  * You can therefore dispose of the memory after the upload/update.
+1011  */
+1012 struct ff_periodic_effect {
+1013         __u16 waveform;
+1014         __u16 period;
+1015         __s16 magnitude;
+1016         __s16 offset;
+1017         __u16 phase;
+1018 
+1019         struct ff_envelope envelope;
+1020 
+1021         __u32 custom_len;
+1022         __s16 __user *custom_data;
+1023 };
+1024 
+1025 /**
+1026  * struct ff_rumble_effect - defines parameters of a periodic force-feedback effect
+1027  * @strong_magnitude: magnitude of the heavy motor
+1028  * @weak_magnitude: magnitude of the light one
+1029  *
+1030  * Some rumble pads have two motors of different weight. Strong_magnitude
+1031  * represents the magnitude of the vibration generated by the heavy one.
+1032  */
+1033 struct ff_rumble_effect {
+1034         __u16 strong_magnitude;
+1035         __u16 weak_magnitude;
+1036 };
+1037 
+1038 /**
+1039  * struct ff_effect - defines force feedback effect
+1040  * @type: type of the effect (FF_CONSTANT, FF_PERIODIC, FF_RAMP, FF_SPRING,
+1041  *      FF_FRICTION, FF_DAMPER, FF_RUMBLE, FF_INERTIA, or FF_CUSTOM)
+1042  * @id: an unique id assigned to an effect
+1043  * @direction: direction of the effect
+1044  * @trigger: trigger conditions (struct ff_trigger)
+1045  * @replay: scheduling of the effect (struct ff_replay)
+1046  * @u: effect-specific structure (one of ff_constant_effect, ff_ramp_effect,
+1047  *      ff_periodic_effect, ff_condition_effect, ff_rumble_effect) further
+1048  *      defining effect parameters
+1049  *
+1050  * This structure is sent through ioctl from the application to the driver.
+1051  * To create a new effect application should set its @id to -1; the kernel
+1052  * will return assigned @id which can later be used to update or delete
+1053  * this effect.
+1054  *
+1055  * Direction of the effect is encoded as follows:
+1056  *      0 deg -> 0x0000 (down)
+1057  *      90 deg -> 0x4000 (left)
+1058  *      180 deg -> 0x8000 (up)
+1059  *      270 deg -> 0xC000 (right)
+1060  */
+1061 struct ff_effect {
+1062         __u16 type;
+1063         __s16 id;
+1064         __u16 direction;
+1065         struct ff_trigger trigger;
+1066         struct ff_replay replay;
+1067 
+1068         union {
+1069                 struct ff_constant_effect constant;
+1070                 struct ff_ramp_effect ramp;
+1071                 struct ff_periodic_effect periodic;
+1072                 struct ff_condition_effect condition[2]; /* One for each axis */
+1073                 struct ff_rumble_effect rumble;
+1074         } u;
+1075 };
+1076 
+1077 /*
+1078  * Force feedback effect types
+1079  */
+1080 
+1081 #define FF_RUMBLE       0x50
+1082 #define FF_PERIODIC     0x51
+1083 #define FF_CONSTANT     0x52
+1084 #define FF_SPRING       0x53
+1085 #define FF_FRICTION     0x54
+1086 #define FF_DAMPER       0x55
+1087 #define FF_INERTIA      0x56
+1088 #define FF_RAMP         0x57
+1089 
+1090 #define FF_EFFECT_MIN   FF_RUMBLE
+1091 #define FF_EFFECT_MAX   FF_RAMP
+1092 
+1093 /*
+1094  * Force feedback periodic effect types
+1095  */
+1096 
+1097 #define FF_SQUARE       0x58
+1098 #define FF_TRIANGLE     0x59
+1099 #define FF_SINE         0x5a
+1100 #define FF_SAW_UP       0x5b
+1101 #define FF_SAW_DOWN     0x5c
+1102 #define FF_CUSTOM       0x5d
+1103 
+1104 #define FF_WAVEFORM_MIN FF_SQUARE
+1105 #define FF_WAVEFORM_MAX FF_CUSTOM
+1106 
+1107 /*
+1108  * Set ff device properties
+1109  */
+1110 
+1111 #define FF_GAIN         0x60
+1112 #define FF_AUTOCENTER   0x61
+1113 
+1114 #define FF_MAX          0x7f
+1115 #define FF_CNT          (FF_MAX+1)
+1116 
+1117 #ifdef __KERNEL__
+1118 
+1119 /*
+1120  * In-kernel definitions.
+1121  */
+1122 
+1123 #include <linux/device.h>
+1124 #include <linux/fs.h>
+1125 #include <linux/timer.h>
+1126 #include <linux/mod_devicetable.h>
+1127 
+1128 /**
+1129  * struct input_dev - represents an input device
+1130  * @name: name of the device
+1131  * @phys: physical path to the device in the system hierarchy
+1132  * @uniq: unique identification code for the device (if device has it)
+1133  * @id: id of the device (struct input_id)
+1134  * @propbit: bitmap of device properties and quirks
+1135  * @evbit: bitmap of types of events supported by the device (EV_KEY,
+1136  *      EV_REL, etc.)
+1137  * @keybit: bitmap of keys/buttons this device has
+1138  * @relbit: bitmap of relative axes for the device
+1139  * @absbit: bitmap of absolute axes for the device
+1140  * @mscbit: bitmap of miscellaneous events supported by the device
+1141  * @ledbit: bitmap of leds present on the device
+1142  * @sndbit: bitmap of sound effects supported by the device
+1143  * @ffbit: bitmap of force feedback effects supported by the device
+1144  * @swbit: bitmap of switches present on the device
+1145  * @hint_events_per_packet: average number of events generated by the
+1146  *      device in a packet (between EV_SYN/SYN_REPORT events). Used by
+1147  *      event handlers to estimate size of the buffer needed to hold
+1148  *      events.
+1149  * @keycodemax: size of keycode table
+1150  * @keycodesize: size of elements in keycode table
+1151  * @keycode: map of scancodes to keycodes for this device
+1152  * @getkeycode: optional legacy method to retrieve current keymap.
+1153  * @setkeycode: optional method to alter current keymap, used to implement
+1154  *      sparse keymaps. If not supplied default mechanism will be used.
+1155  *      The method is being called while holding event_lock and thus must
+1156  *      not sleep
+1157  * @getkeycode_new: transition method
+1158  * @setkeycode_new: transition method
+1159  * @ff: force feedback structure associated with the device if device
+1160  *      supports force feedback effects
+1161  * @repeat_key: stores key code of the last key pressed; used to implement
+1162  *      software autorepeat
+1163  * @timer: timer for software autorepeat
+1164  * @rep: current values for autorepeat parameters (delay, rate)
+1165  * @mt: pointer to array of struct input_mt_slot holding current values
+1166  *      of tracked contacts
+1167  * @mtsize: number of MT slots the device uses
+1168  * @slot: MT slot currently being transmitted
+1169  * @trkid: stores MT tracking ID for the current contact
+1170  * @absinfo: array of &struct input_absinfo elements holding information
+1171  *      about absolute axes (current value, min, max, flat, fuzz,
+1172  *      resolution)
+1173  * @key: reflects current state of device's keys/buttons
+1174  * @led: reflects current state of device's LEDs
+1175  * @snd: reflects current state of sound effects
+1176  * @sw: reflects current state of device's switches
+1177  * @open: this method is called when the very first user calls
+1178  *      input_open_device(). The driver must prepare the device
+1179  *      to start generating events (start polling thread,
+1180  *      request an IRQ, submit URB, etc.)
+1181  * @close: this method is called when the very last user calls
+1182  *      input_close_device().
+1183  * @flush: purges the device. Most commonly used to get rid of force
+1184  *      feedback effects loaded into the device when disconnecting
+1185  *      from it
+1186  * @event: event handler for events sent _to_ the device, like EV_LED
+1187  *      or EV_SND. The device is expected to carry out the requested
+1188  *      action (turn on a LED, play sound, etc.) The call is protected
+1189  *      by @event_lock and must not sleep
+1190  * @grab: input handle that currently has the device grabbed (via
+1191  *      EVIOCGRAB ioctl). When a handle grabs a device it becomes sole
+1192  *      recipient for all input events coming from the device
+1193  * @event_lock: this spinlock is is taken when input core receives
+1194  *      and processes a new event for the device (in input_event()).
+1195  *      Code that accesses and/or modifies parameters of a device
+1196  *      (such as keymap or absmin, absmax, absfuzz, etc.) after device
+1197  *      has been registered with input core must take this lock.
+1198  * @mutex: serializes calls to open(), close() and flush() methods
+1199  * @users: stores number of users (input handlers) that opened this
+1200  *      device. It is used by input_open_device() and input_close_device()
+1201  *      to make sure that dev->open() is only called when the first
+1202  *      user opens device and dev->close() is called when the very
+1203  *      last user closes the device
+1204  * @going_away: marks devices that are in a middle of unregistering and
+1205  *      causes input_open_device*() fail with -ENODEV.
+1206  * @sync: set to %true when there were no new events since last EV_SYN
+1207  * @dev: driver model's view of this device
+1208  * @h_list: list of input handles associated with the device. When
+1209  *      accessing the list dev->mutex must be held
+1210  * @node: used to place the device onto input_dev_list
+1211  */
+1212 struct input_dev {
+1213         const char *name;
+1214         const char *phys;
+1215         const char *uniq;
+1216         struct input_id id;
+1217 
+1218         unsigned long propbit[BITS_TO_LONGS(INPUT_PROP_CNT)];
+1219 
+1220         unsigned long evbit[BITS_TO_LONGS(EV_CNT)];
+1221         unsigned long keybit[BITS_TO_LONGS(KEY_CNT)];
+1222         unsigned long relbit[BITS_TO_LONGS(REL_CNT)];
+1223         unsigned long absbit[BITS_TO_LONGS(ABS_CNT)];
+1224         unsigned long mscbit[BITS_TO_LONGS(MSC_CNT)];
+1225         unsigned long ledbit[BITS_TO_LONGS(LED_CNT)];
+1226         unsigned long sndbit[BITS_TO_LONGS(SND_CNT)];
+1227         unsigned long ffbit[BITS_TO_LONGS(FF_CNT)];
+1228         unsigned long swbit[BITS_TO_LONGS(SW_CNT)];
+1229 
+1230         unsigned int hint_events_per_packet;
+1231 
+1232         unsigned int keycodemax;
+1233         unsigned int keycodesize;
+1234         void *keycode;
+1235 
+1236         int (*setkeycode)(struct input_dev *dev,
+1237                           unsigned int scancode, unsigned int keycode);
+1238         int (*getkeycode)(struct input_dev *dev,
+1239                           unsigned int scancode, unsigned int *keycode);
+1240         int (*setkeycode_new)(struct input_dev *dev,
+1241                               const struct input_keymap_entry *ke,
+1242                               unsigned int *old_keycode);
+1243         int (*getkeycode_new)(struct input_dev *dev,
+1244                               struct input_keymap_entry *ke);
+1245 
+1246         struct ff_device *ff;
+1247 
+1248         unsigned int repeat_key;
+1249         struct timer_list timer;
+1250 
+1251         int rep[REP_CNT];
+1252 
+1253         struct input_mt_slot *mt;
+1254         int mtsize;
+1255         int slot;
+1256         int trkid;
+1257 
+1258         struct input_absinfo *absinfo;
+1259 
+1260         unsigned long key[BITS_TO_LONGS(KEY_CNT)];
+1261         unsigned long led[BITS_TO_LONGS(LED_CNT)];
+1262         unsigned long snd[BITS_TO_LONGS(SND_CNT)];
+1263         unsigned long sw[BITS_TO_LONGS(SW_CNT)];
+1264 
+1265         int (*open)(struct input_dev *dev);
+1266         void (*close)(struct input_dev *dev);
+1267         int (*flush)(struct input_dev *dev, struct file *file);
+1268         int (*event)(struct input_dev *dev, unsigned int type, unsigned int code, int value);
+1269 
+1270         struct input_handle __rcu *grab;
+1271 
+1272         spinlock_t event_lock;
+1273         struct mutex mutex;
+1274 
+1275         unsigned int users;
+1276         bool going_away;
+1277 
+1278         bool sync;
+1279 
+1280         struct device dev;
+1281 
+1282         struct list_head        h_list;
+1283         struct list_head        node;
+1284 };
+1285 #define to_input_dev(d) container_of(d, struct input_dev, dev)
+1286 
+1287 /*
+1288  * Verify that we are in sync with input_device_id mod_devicetable.h #defines
+1289  */
+1290 
+1291 #if EV_MAX != INPUT_DEVICE_ID_EV_MAX
+1292 #error "EV_MAX and INPUT_DEVICE_ID_EV_MAX do not match"
+1293 #endif
+1294 
+1295 #if KEY_MIN_INTERESTING != INPUT_DEVICE_ID_KEY_MIN_INTERESTING
+1296 #error "KEY_MIN_INTERESTING and INPUT_DEVICE_ID_KEY_MIN_INTERESTING do not match"
+1297 #endif
+1298 
+1299 #if KEY_MAX != INPUT_DEVICE_ID_KEY_MAX
+1300 #error "KEY_MAX and INPUT_DEVICE_ID_KEY_MAX do not match"
+1301 #endif
+1302 
+1303 #if REL_MAX != INPUT_DEVICE_ID_REL_MAX
+1304 #error "REL_MAX and INPUT_DEVICE_ID_REL_MAX do not match"
+1305 #endif
+1306 
+1307 #if ABS_MAX != INPUT_DEVICE_ID_ABS_MAX
+1308 #error "ABS_MAX and INPUT_DEVICE_ID_ABS_MAX do not match"
+1309 #endif
+1310 
+1311 #if MSC_MAX != INPUT_DEVICE_ID_MSC_MAX
+1312 #error "MSC_MAX and INPUT_DEVICE_ID_MSC_MAX do not match"
+1313 #endif
+1314 
+1315 #if LED_MAX != INPUT_DEVICE_ID_LED_MAX
+1316 #error "LED_MAX and INPUT_DEVICE_ID_LED_MAX do not match"
+1317 #endif
+1318 
+1319 #if SND_MAX != INPUT_DEVICE_ID_SND_MAX
+1320 #error "SND_MAX and INPUT_DEVICE_ID_SND_MAX do not match"
+1321 #endif
+1322 
+1323 #if FF_MAX != INPUT_DEVICE_ID_FF_MAX
+1324 #error "FF_MAX and INPUT_DEVICE_ID_FF_MAX do not match"
+1325 #endif
+1326 
+1327 #if SW_MAX != INPUT_DEVICE_ID_SW_MAX
+1328 #error "SW_MAX and INPUT_DEVICE_ID_SW_MAX do not match"
+1329 #endif
+1330 
+1331 #define INPUT_DEVICE_ID_MATCH_DEVICE \
+1332         (INPUT_DEVICE_ID_MATCH_BUS | INPUT_DEVICE_ID_MATCH_VENDOR | INPUT_DEVICE_ID_MATCH_PRODUCT)
+1333 #define INPUT_DEVICE_ID_MATCH_DEVICE_AND_VERSION \
+1334         (INPUT_DEVICE_ID_MATCH_DEVICE | INPUT_DEVICE_ID_MATCH_VERSION)
+1335 
+1336 struct input_handle;
+1337 
+1338 /**
+1339  * struct input_handler - implements one of interfaces for input devices
+1340  * @private: driver-specific data
+1341  * @event: event handler. This method is being called by input core with
+1342  *      interrupts disabled and dev->event_lock spinlock held and so
+1343  *      it may not sleep
+1344  * @filter: similar to @event; separates normal event handlers from
+1345  *      "filters".
+1346  * @match: called after comparing device's id with handler's id_table
+1347  *      to perform fine-grained matching between device and handler
+1348  * @connect: called when attaching a handler to an input device
+1349  * @disconnect: disconnects a handler from input device
+1350  * @start: starts handler for given handle. This function is called by
+1351  *      input core right after connect() method and also when a process
+1352  *      that "grabbed" a device releases it
+1353  * @fops: file operations this driver implements
+1354  * @minor: beginning of range of 32 minors for devices this driver
+1355  *      can provide
+1356  * @name: name of the handler, to be shown in /proc/bus/input/handlers
+1357  * @id_table: pointer to a table of input_device_ids this driver can
+1358  *      handle
+1359  * @h_list: list of input handles associated with the handler
+1360  * @node: for placing the driver onto input_handler_list
+1361  *
+1362  * Input handlers attach to input devices and create input handles. There
+1363  * are likely several handlers attached to any given input device at the
+1364  * same time. All of them will get their copy of input event generated by
+1365  * the device.
+1366  *
+1367  * The very same structure is used to implement input filters. Input core
+1368  * allows filters to run first and will not pass event to regular handlers
+1369  * if any of the filters indicate that the event should be filtered (by
+1370  * returning %true from their filter() method).
+1371  *
+1372  * Note that input core serializes calls to connect() and disconnect()
+1373  * methods.
+1374  */
+1375 struct input_handler {
+1376 
+1377         void *private;
+1378 
+1379         void (*event)(struct input_handle *handle, unsigned int type, unsigned int code, int value);
+1380         bool (*filter)(struct input_handle *handle, unsigned int type, unsigned int code, int value);
+1381         bool (*match)(struct input_handler *handler, struct input_dev *dev);
+1382         int (*connect)(struct input_handler *handler, struct input_dev *dev, const struct input_device_id *id);
+1383         void (*disconnect)(struct input_handle *handle);
+1384         void (*start)(struct input_handle *handle);
+1385 
+1386         const struct file_operations *fops;
+1387         int minor;
+1388         const char *name;
+1389 
+1390         const struct input_device_id *id_table;
+1391 
+1392         struct list_head        h_list;
+1393         struct list_head        node;
+1394 };
+1395 
+1396 /**
+1397  * struct input_handle - links input device with an input handler
+1398  * @private: handler-specific data
+1399  * @open: counter showing whether the handle is 'open', i.e. should deliver
+1400  *      events from its device
+1401  * @name: name given to the handle by handler that created it
+1402  * @dev: input device the handle is attached to
+1403  * @handler: handler that works with the device through this handle
+1404  * @d_node: used to put the handle on device's list of attached handles
+1405  * @h_node: used to put the handle on handler's list of handles from which
+1406  *      it gets events
+1407  */
+1408 struct input_handle {
+1409 
+1410         void *private;
+1411 
+1412         int open;
+1413         const char *name;
+1414 
+1415         struct input_dev *dev;
+1416         struct input_handler *handler;
+1417 
+1418         struct list_head        d_node;
+1419         struct list_head        h_node;
+1420 };
+1421 
+1422 struct input_dev *input_allocate_device(void);
+1423 void input_free_device(struct input_dev *dev);
+1424 
+1425 static inline struct input_dev *input_get_device(struct input_dev *dev)
+1426 {
+1427         return dev ? to_input_dev(get_device(&dev->dev)) : NULL;
+1428 }
+1429 
+1430 static inline void input_put_device(struct input_dev *dev)
+1431 {
+1432         if (dev)
+1433                 put_device(&dev->dev);
+1434 }
+1435 
+1436 static inline void *input_get_drvdata(struct input_dev *dev)
+1437 {
+1438         return dev_get_drvdata(&dev->dev);
+1439 }
+1440 
+1441 static inline void input_set_drvdata(struct input_dev *dev, void *data)
+1442 {
+1443         dev_set_drvdata(&dev->dev, data);
+1444 }
+1445 
+1446 int __must_check input_register_device(struct input_dev *);
+1447 void input_unregister_device(struct input_dev *);
+1448 
+1449 void input_reset_device(struct input_dev *);
+1450 
+1451 int __must_check input_register_handler(struct input_handler *);
+1452 void input_unregister_handler(struct input_handler *);
+1453 
+1454 int input_handler_for_each_handle(struct input_handler *, void *data,
+1455                                   int (*fn)(struct input_handle *, void *));
+1456 
+1457 int input_register_handle(struct input_handle *);
+1458 void input_unregister_handle(struct input_handle *);
+1459 
+1460 int input_grab_device(struct input_handle *);
+1461 void input_release_device(struct input_handle *);
+1462 
+1463 int input_open_device(struct input_handle *);
+1464 void input_close_device(struct input_handle *);
+1465 
+1466 int input_flush_device(struct input_handle *handle, struct file *file);
+1467 
+1468 void input_event(struct input_dev *dev, unsigned int type, unsigned int code, int value);
+1469 void input_inject_event(struct input_handle *handle, unsigned int type, unsigned int code, int value);
+1470 
+1471 static inline void input_report_key(struct input_dev *dev, unsigned int code, int value)
+1472 {
+1473         input_event(dev, EV_KEY, code, !!value);
+1474 }
+1475 
+1476 static inline void input_report_rel(struct input_dev *dev, unsigned int code, int value)
+1477 {
+1478         input_event(dev, EV_REL, code, value);
+1479 }
+1480 
+1481 static inline void input_report_abs(struct input_dev *dev, unsigned int code, int value)
+1482 {
+1483         input_event(dev, EV_ABS, code, value);
+1484 }
+1485 
+1486 static inline void input_report_ff_status(struct input_dev *dev, unsigned int code, int value)
+1487 {
+1488         input_event(dev, EV_FF_STATUS, code, value);
+1489 }
+1490 
+1491 static inline void input_report_switch(struct input_dev *dev, unsigned int code, int value)
+1492 {
+1493         input_event(dev, EV_SW, code, !!value);
+1494 }
+1495 
+1496 static inline void input_sync(struct input_dev *dev)
+1497 {
+1498         input_event(dev, EV_SYN, SYN_REPORT, 0);
+1499 }
+1500 
+1501 static inline void input_mt_sync(struct input_dev *dev)
+1502 {
+1503         input_event(dev, EV_SYN, SYN_MT_REPORT, 0);
+1504 }
+1505 
+1506 void input_set_capability(struct input_dev *dev, unsigned int type, unsigned int code);
+1507 
+1508 /**
+1509  * input_set_events_per_packet - tell handlers about the driver event rate
+1510  * @dev: the input device used by the driver
+1511  * @n_events: the average number of events between calls to input_sync()
+1512  *
+1513  * If the event rate sent from a device is unusually large, use this
+1514  * function to set the expected event rate. This will allow handlers
+1515  * to set up an appropriate buffer size for the event stream, in order
+1516  * to minimize information loss.
+1517  */
+1518 static inline void input_set_events_per_packet(struct input_dev *dev, int n_events)
+1519 {
+1520         dev->hint_events_per_packet = n_events;
+1521 }
+1522 
+1523 void input_alloc_absinfo(struct input_dev *dev);
+1524 void input_set_abs_params(struct input_dev *dev, unsigned int axis,
+1525                           int min, int max, int fuzz, int flat);
+1526 
+1527 #define INPUT_GENERATE_ABS_ACCESSORS(_suffix, _item)                    \
+1528 static inline int input_abs_get_##_suffix(struct input_dev *dev,        \
+1529                                           unsigned int axis)            \
+1530 {                                                                       \
+1531         return dev->absinfo ? dev->absinfo[axis]._item : 0;             \
+1532 }                                                                       \
+1533                                                                         \
+1534 static inline void input_abs_set_##_suffix(struct input_dev *dev,       \
+1535                                            unsigned int axis, int val)  \
+1536 {                                                                       \
+1537         input_alloc_absinfo(dev);                                       \
+1538         if (dev->absinfo)                                               \
+1539                 dev->absinfo[axis]._item = val;                         \
+1540 }
+1541 
+1542 INPUT_GENERATE_ABS_ACCESSORS(val, value)
+1543 INPUT_GENERATE_ABS_ACCESSORS(min, minimum)
+1544 INPUT_GENERATE_ABS_ACCESSORS(max, maximum)
+1545 INPUT_GENERATE_ABS_ACCESSORS(fuzz, fuzz)
+1546 INPUT_GENERATE_ABS_ACCESSORS(flat, flat)
+1547 INPUT_GENERATE_ABS_ACCESSORS(res, resolution)
+1548 
+1549 int input_scancode_to_scalar(const struct input_keymap_entry *ke,
+1550                              unsigned int *scancode);
+1551 
+1552 int input_get_keycode(struct input_dev *dev, struct input_keymap_entry *ke);
+1553 int input_set_keycode(struct input_dev *dev,
+1554                       const struct input_keymap_entry *ke);
+1555 
+1556 extern struct class input_class;
+1557 
+1558 /**
+1559  * struct ff_device - force-feedback part of an input device
+1560  * @upload: Called to upload an new effect into device
+1561  * @erase: Called to erase an effect from device
+1562  * @playback: Called to request device to start playing specified effect
+1563  * @set_gain: Called to set specified gain
+1564  * @set_autocenter: Called to auto-center device
+1565  * @destroy: called by input core when parent input device is being
+1566  *      destroyed
+1567  * @private: driver-specific data, will be freed automatically
+1568  * @ffbit: bitmap of force feedback capabilities truly supported by
+1569  *      device (not emulated like ones in input_dev->ffbit)
+1570  * @mutex: mutex for serializing access to the device
+1571  * @max_effects: maximum number of effects supported by device
+1572  * @effects: pointer to an array of effects currently loaded into device
+1573  * @effect_owners: array of effect owners; when file handle owning
+1574  *      an effect gets closed the effect is automatically erased
+1575  *
+1576  * Every force-feedback device must implement upload() and playback()
+1577  * methods; erase() is optional. set_gain() and set_autocenter() need
+1578  * only be implemented if driver sets up FF_GAIN and FF_AUTOCENTER
+1579  * bits.
+1580  *
+1581  * Note that playback(), set_gain() and set_autocenter() are called with
+1582  * dev->event_lock spinlock held and interrupts off and thus may not
+1583  * sleep.
+1584  */
+1585 struct ff_device {
+1586         int (*upload)(struct input_dev *dev, struct ff_effect *effect,
+1587                       struct ff_effect *old);
+1588         int (*erase)(struct input_dev *dev, int effect_id);
+1589 
+1590         int (*playback)(struct input_dev *dev, int effect_id, int value);
+1591         void (*set_gain)(struct input_dev *dev, u16 gain);
+1592         void (*set_autocenter)(struct input_dev *dev, u16 magnitude);
+1593 
+1594         void (*destroy)(struct ff_device *);
+1595 
+1596         void *private;
+1597 
+1598         unsigned long ffbit[BITS_TO_LONGS(FF_CNT)];
+1599 
+1600         struct mutex mutex;
+1601 
+1602         int max_effects;
+1603         struct ff_effect *effects;
+1604         struct file *effect_owners[];
+1605 };
+1606 
+1607 int input_ff_create(struct input_dev *dev, int max_effects);
+1608 void input_ff_destroy(struct input_dev *dev);
+1609 
+1610 int input_ff_event(struct input_dev *dev, unsigned int type, unsigned int code, int value);
+1611 
+1612 int input_ff_upload(struct input_dev *dev, struct ff_effect *effect, struct file *file);
+1613 int input_ff_erase(struct input_dev *dev, int effect_id, struct file *file);
+1614 
+1615 int input_ff_create_memless(struct input_dev *dev, void *data,
+1616                 int (*play_effect)(struct input_dev *, void *, struct ff_effect *));
+1617 
+1618 #endif
+1619 #endif
